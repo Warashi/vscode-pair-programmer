@@ -69,11 +69,21 @@ function updateChatPanel(diff: string, responseText: string) {
 }
 
 function getWebviewContent(history: vscode.LanguageModelChatMessage[]): string {
+    const getContent = (message: vscode.LanguageModelChatMessage) => {
+        let content = '';
+        for (const part of message.content) {
+            if (part instanceof vscode.LanguageModelTextPart) {
+                content += part.value;
+            }
+        }
+        return content;
+    };
+
     const historyHtml = history.map(entry => {
         if (entry.role === vscode.LanguageModelChatMessageRole.User) {
-            return `<details><summary>Sent Diff</summary><pre>${entry.content}</pre></details>`;
+            return `<details><summary>Sent Diff</summary><pre>${getContent(entry)}</pre></details>`;
         } else if (entry.role === vscode.LanguageModelChatMessageRole.Assistant) {
-            return `<pre>${entry.content}</pre>`;
+            return `<pre>${getContent(entry)}</pre>`;
         }
         return '';
     }).join('');
