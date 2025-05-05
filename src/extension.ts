@@ -145,22 +145,24 @@ function trackBufferChanges(editor: vscode.TextEditor) {
     }
 
     // Implementing a delay mechanism to reduce frequency of sending diffs
-    const delay = 3000; // 3 seconds delay
+    const delay = 5000; // 5 seconds delay
     const lastSentTime = state.lastSentTimes.get(uri) || 0;
     const currentTime = Date.now();
 
-    if (currentTime - lastSentTime > delay) {
+    const sendDiff = () => {
         sendDiffToChatModel(diff);
         state.bufferContent.set(uri, newContent);
-        state.lastSentTimes.set(uri, currentTime);
+        state.lastSentTimes.set(uri, Date.now());
+    };
+
+    if (currentTime - lastSentTime > delay) {
+        sendDiff();
     } else {
         // Schedule the diff to be sent after the delay if no further changes occur
         setTimeout(() => {
             const latestContent = document.getText();
             if (latestContent === newContent) {
-                sendDiffToChatModel(diff);
-                state.bufferContent.set(uri, newContent);
-                state.lastSentTimes.set(uri, Date.now());
+                sendDiff();
             }
         }, delay - (currentTime - lastSentTime));
     }
@@ -196,6 +198,21 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.workspace.onDidChangeTextDocument((event) => {
             if (event.document === document) {
                 trackBufferChanges(editor);
+            }
+        });
+
+        vscode.workspace.onDidSaveTextDocument((savedDocument) => {
+            if (savedDocument === document) {
+                const uri = document.uri.toString();
+                const oldContent = state.bufferContent.get(uri) || '';
+                const newContent = document.getText();
+
+                const diff = computeDiff(oldContent, newContent);
+                if (diff) {
+                    sendDiffToChatModel(diff);
+                    state.bufferContent.set(uri, newContent);
+                    state.lastSentTimes.set(uri, Date.now());
+                }
             }
         });
 
