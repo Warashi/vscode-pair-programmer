@@ -20,6 +20,11 @@
           "type": "string",
           "default": "",
           "description": "Custom instruction for pAIr programmer"
+        },
+        "pair-programmer.chatModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Chat model for pAIr programmer"
         }
       }
     },

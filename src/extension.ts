@@ -24,10 +24,11 @@ Sometimes I'll share stuff that's not a diff, so just think about whether to loo
 `;
 
 const config = vscode.workspace.getConfiguration('pair-programmer');
+const chatModel = config.get<string>('chatModel');
 const customInstructions = config.get<string>('customInstructions');
 
 async function sendDiffToChatModel(diff: string) {
-    const models = await vscode.lm.selectChatModels();
+    const models = await vscode.lm.selectChatModels({ family: chatModel });
     if (models.length === 0) {
         vscode.window.showInformationMessage('No chat models available');
         return;

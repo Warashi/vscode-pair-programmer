@@ -15,6 +15,11 @@ This extension provides the following commands:
 - `pair-programmer.start`: Starts a pair programming session, initializing buffers and opening the chat panel.
 - `pair-programmer.stop`: Stops the pair programming session and clears all buffers and chat history.
 
+## Extension Settings
+This extension contributes the following settings:
+- `pair-programmer.customInstructions`: Custom instructions for the chat model.
+- `pair-programmer.chatModel`: The chat model to be used for the pair programming session.
+
 ## Known Issues
 
 - The extension assumes the availability of a chat model. If no models are available, it will display an information message.
