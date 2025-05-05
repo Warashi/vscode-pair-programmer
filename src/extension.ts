@@ -7,6 +7,7 @@ interface State {
     bufferContent: Map<string, string>;
     chatPanel: vscode.WebviewPanel | null;
     chatHistory: vscode.LanguageModelChatMessage[]; // Changed to use vscode.LanguageModelChatMessage[]
+    ongoingRequest: boolean; // New property to track if a request is in progress
 }
 
 const state: State = {
@@ -15,6 +16,7 @@ const state: State = {
     bufferContent: new Map(),
     chatPanel: null,
     chatHistory: [], // Initialize as an empty array
+    ongoingRequest: false, // New property to track if a request is in progress
 };
 
 const systemPrompt = `
@@ -31,29 +33,43 @@ const chatModel = config.get<string>('chatModel');
 const customInstructions = config.get<string>('customInstructions');
 
 async function sendDiffToChatModel(diff: string) {
-    const models = await vscode.lm.selectChatModels({ family: chatModel });
-    if (models.length === 0) {
-        vscode.window.showInformationMessage('No chat models available');
+    if (state.ongoingRequest) {
+        vscode.window.showInformationMessage('A request is already in progress. Please wait.');
         return;
     }
-    const model = models[0];
 
-    const messages = [];
-    messages.push(vscode.LanguageModelChatMessage.User(systemPrompt));
-    if (customInstructions && customInstructions.length > 0) {
-        messages.push(vscode.LanguageModelChatMessage.User(customInstructions));
+    state.ongoingRequest = true; // Mark request as in progress
+
+    try {
+        const models = await vscode.lm.selectChatModels({ family: chatModel });
+        if (models.length === 0) {
+            vscode.window.showInformationMessage('No chat models available');
+            state.ongoingRequest = false; // Mark request as completed
+            return;
+        }
+        const model = models[0];
+
+        const messages = [];
+        messages.push(vscode.LanguageModelChatMessage.User(systemPrompt));
+        if (customInstructions && customInstructions.length > 0) {
+            messages.push(vscode.LanguageModelChatMessage.User(customInstructions));
+        }
+        messages.push(...state.chatHistory);
+        messages.push(vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``));
+
+        const res = await model.sendRequest(messages);
+
+        let responseText = '';
+        for await (const message of res.text) {
+            responseText += message;
+        }
+
+        updateChatPanel(diff, responseText);
+    } catch (error) {
+        vscode.window.showErrorMessage('Error sending diff to chat model: ' + error);
+    } finally {
+        state.ongoingRequest = false; // Mark request as completed
     }
-    messages.push(...state.chatHistory);
-    messages.push(vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``));
-
-    const res = await model.sendRequest(messages);
-
-    let responseText = '';
-    for await (const message of res.text) {
-        responseText += message;
-    }
-
-    updateChatPanel(diff, responseText);
 }
 
 function updateChatPanel(diff: string, responseText: string) {
