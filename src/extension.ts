@@ -144,7 +144,7 @@ function trackBufferChanges(editor: vscode.TextEditor) {
         return;
     }
 
-    const delay = 3000; // 3 seconds delay
+    const delay = 3000;
 
     const sendDiff = () => {
         sendDiffToChatModel(diff);
