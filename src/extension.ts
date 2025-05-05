@@ -28,10 +28,10 @@ async function sendDiffToChatModel(diff: string) {
         responseText += message;
     }
 
-    updateChatPanel(responseText);
+    updateChatPanel(responseText, diff);
 }
 
-function updateChatPanel(content: string) {
+function updateChatPanel(content: string, diff: string) {
     if (!state.chatPanel) {
         state.chatPanel = vscode.window.createWebviewPanel(
             'pairProgrammerChat',
@@ -50,7 +50,15 @@ function updateChatPanel(content: string) {
     const historyMatch = previousContent.match(/<div id="history">([\s\S]*?)<\/div>/);
     const history = historyMatch ? historyMatch[1] : '';
 
-    const updatedHistory = `${history}<pre>${content}</pre>`;
+    // Add collapsible diff section
+    const updatedHistory = `
+        ${history}
+        <details>
+            <summary>Sent Diff</summary>
+            <pre>${diff}</pre>
+        </details>
+        <pre>${content}</pre>
+    `;
 
     state.chatPanel.webview.html = getWebviewContent(updatedHistory);
 }
@@ -65,8 +73,10 @@ function getWebviewContent(history: string): string {
             <title>Pair Programmer Chat</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 10px; }
-                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
                 #history { margin-bottom: 20px; }
+                details { margin-bottom: 10px; }
+                summary { cursor: pointer; font-weight: bold; }
             </style>
         </head>
         <body>
