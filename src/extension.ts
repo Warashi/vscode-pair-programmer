@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { diffLines } from 'diff';
 
 interface State {
     enabled: boolean;
@@ -131,24 +132,19 @@ function computeDiff(oldContent: string, newContent: string): string | null {
     if (oldContent === newContent) {
         return null;
     }
-    // Simple diff computation (line-by-line)
-    const oldLines = oldContent.split('\n');
-    const newLines = newContent.split('\n');
-    const diff: string[] = [];
 
-    oldLines.forEach((line, index) => {
-        if (line !== newLines[index]) {
-            diff.push(`- ${line}`);
+    const diff = diffLines(oldContent, newContent);
+    const diffResult: string[] = [];
+
+    diff.forEach((part) => {
+        if (part.added) {
+            diffResult.push(...part.value.split('\n').map(line => `+ ${line}`));
+        } else if (part.removed) {
+            diffResult.push(...part.value.split('\n').map(line => `- ${line}`));
         }
     });
 
-    newLines.forEach((line, index) => {
-        if (line !== oldLines[index]) {
-            diff.push(`+ ${line}`);
-        }
-    });
-
-    return diff.join('\n');
+    return diffResult.join('\n');
 }
 
 function trackBufferChanges(editor: vscode.TextEditor) {
