@@ -2,10 +2,12 @@ import * as vscode from 'vscode';
 
 interface State {
     bufferContent: Map<string, string>;
+    chatPanel: vscode.WebviewPanel | null;
 }
 
 const state: State = {
     bufferContent: new Map(),
+    chatPanel: null,
 };
 
 async function sendDiffToChatModel(diff: string) {
@@ -18,9 +20,51 @@ async function sendDiffToChatModel(diff: string) {
     const res = await model.sendRequest([
         vscode.LanguageModelChatMessage.User(`\`\`\`diff\n${diff}\n\`\`\``)
     ]);
+
+    let responseText = '';
     for await (const message of res.text) {
-        console.log(message);
+        responseText += message;
     }
+
+    updateChatPanel(responseText);
+}
+
+function updateChatPanel(content: string) {
+    if (!state.chatPanel) {
+        state.chatPanel = vscode.window.createWebviewPanel(
+            'pairProgrammerChat',
+            'Pair Programmer Chat',
+            vscode.ViewColumn.Beside,
+            { enableScripts: true }
+        );
+
+        state.chatPanel.onDidDispose(() => {
+            state.chatPanel = null;
+        });
+    }
+
+    state.chatPanel.webview.html = getWebviewContent(content);
+}
+
+function getWebviewContent(content: string): string {
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pair Programmer Chat</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 10px; }
+                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h2>Chat Response</h2>
+            <pre>${content}</pre>
+        </body>
+        </html>
+    `;
 }
 
 function computeDiff(oldContent: string, newContent: string): string | null {
@@ -61,7 +105,7 @@ function trackBufferChanges(editor: vscode.TextEditor) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    const disposableStart = vscode.commands.registerCommand('pair-programmer.start', () => {
+    const disposable = vscode.commands.registerCommand('pair-programmer.start', () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showInformationMessage('No active editor found');
@@ -80,8 +124,11 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Pair programming session started!');
     });
 
-    context.subscriptions.push(disposableStart);
+    context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+    if (state.chatPanel) {
+        state.chatPanel.dispose();
+    }
+}
