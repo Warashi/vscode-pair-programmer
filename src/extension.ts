@@ -23,6 +23,9 @@ When I send you progress in a diff format, no need for explanations, just hit me
 Sometimes I'll share stuff that's not a diff, so just think about whether to look at the whole file or focus on a diff, or series of diffs. you got this! 🤔 Thanks a bunch! 🙏
 `;
 
+const config = vscode.workspace.getConfiguration('pair-programmer');
+const customInstructions = config.get<string>('customInstructions');
+
 async function sendDiffToChatModel(diff: string) {
     const models = await vscode.lm.selectChatModels();
     if (models.length === 0) {
@@ -31,11 +34,15 @@ async function sendDiffToChatModel(diff: string) {
     }
     const model = models[0];
 
-    const res = await model.sendRequest([
-        vscode.LanguageModelChatMessage.User(systemPrompt),
-        ...state.chatHistory,
-        vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``)
-    ]);
+    const messages = [];
+    messages.push(vscode.LanguageModelChatMessage.User(systemPrompt));
+    if (customInstructions && customInstructions.length > 0) {
+        messages.push(vscode.LanguageModelChatMessage.User(customInstructions));
+    }
+    messages.push(...state.chatHistory);
+    messages.push(vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``));
+
+    const res = await model.sendRequest(messages);
 
     let responseText = '';
     for await (const message of res.text) {

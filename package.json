@@ -12,6 +12,17 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "pAIr programmer",
+      "properties": {
+        "pair-programmer.customInstructions": {
+          "type": "string",
+          "default": "",
+          "description": "Custom instruction for pAIr programmer"
+        }
+      }
+    },
     "commands": [
       {
         "command": "pair-programmer.start",
