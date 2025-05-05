@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 interface State {
+    enabled: boolean;
     sendBuffer: Map<string, NodeJS.Timeout>;
     bufferContent: Map<string, string>;
     chatPanel: vscode.WebviewPanel | null;
@@ -8,6 +9,7 @@ interface State {
 }
 
 const state: State = {
+    enabled: false,
     sendBuffer: new Map(),
     bufferContent: new Map(),
     chatPanel: null,
@@ -162,19 +164,19 @@ function trackBufferChanges(editor: vscode.TextEditor) {
 
     const delay = 3000;
 
-    const sendDiff = () => {
-        sendDiffToChatModel(diff);
+    const sendDiff = async () => {
         state.bufferContent.set(uri, newContent);
+        await sendDiffToChatModel(diff);
     };
 
     if (state.sendBuffer.has(uri)) {
         clearTimeout(state.sendBuffer.get(uri));
     }
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
         const latestContent = document.getText();
         if (latestContent === newContent) {
-            sendDiff();
+            await sendDiff();
         }
     }, delay);
 
@@ -183,6 +185,12 @@ function trackBufferChanges(editor: vscode.TextEditor) {
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('pair-programmer.start', () => {
+        if (state.enabled) {
+            vscode.window.showInformationMessage('Pair Programmer is already running.');
+            return;
+        }
+        state.enabled = true;
+
         // Initialize buffer content for all open text documents
         vscode.workspace.textDocuments.forEach((document) => {
             state.bufferContent.set(document.uri.toString(), document.getText());
@@ -206,6 +214,9 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Track changes for all text documents
         vscode.workspace.onDidChangeTextDocument((event) => {
+            if (!state.enabled) {
+                return;
+            }
             const editor = vscode.window.visibleTextEditors.find(
                 (e) => e.document === event.document
             );
@@ -215,15 +226,18 @@ export function activate(context: vscode.ExtensionContext) {
         });
 
         // Handle save events for all text documents
-        vscode.workspace.onDidSaveTextDocument((savedDocument) => {
+        vscode.workspace.onDidSaveTextDocument(async (savedDocument) => {
+            if (!state.enabled) {
+                return;
+            }
             const uri = savedDocument.uri.toString();
             const oldContent = state.bufferContent.get(uri) || '';
             const newContent = savedDocument.getText();
 
             const diff = computeDiff(oldContent, newContent);
             if (diff) {
-                sendDiffToChatModel(diff);
                 state.bufferContent.set(uri, newContent);
+                await sendDiffToChatModel(diff);
             }
         });
 
@@ -240,6 +254,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+    state.enabled = false;
     if (state.chatPanel) {
         state.chatPanel.dispose();
     }
@@ -250,6 +265,15 @@ export function deactivate() {
 }
 
 export function stopPairProgrammer() {
-    deactivate();
+    state.enabled = false;
+    if (state.chatPanel) {
+        state.chatPanel.dispose();
+        state.chatPanel = null;
+    }
+    state.sendBuffer.forEach((timeoutId) => clearTimeout(timeoutId));
+    state.sendBuffer.clear();
+    state.bufferContent.clear();
+    state.chatHistory = [];
+
     vscode.window.showInformationMessage('Pair programming session stopped.');
 }
