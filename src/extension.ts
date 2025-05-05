@@ -171,6 +171,22 @@ export function activate(context: vscode.ExtensionContext) {
         const document = editor.document;
         state.bufferContent.set(document.uri.toString(), document.getText());
 
+        // Open chat panel at the start of the session
+        if (!state.chatPanel) {
+            state.chatPanel = vscode.window.createWebviewPanel(
+                'pairProgrammerChat',
+                'Pair Programmer Chat',
+                vscode.ViewColumn.Beside,
+                { enableScripts: true }
+            );
+
+            state.chatPanel.onDidDispose(() => {
+                state.chatPanel = null;
+            });
+
+            state.chatPanel.webview.html = getWebviewContent('');
+        }
+
         vscode.workspace.onDidChangeTextDocument((event) => {
             if (event.document === document) {
                 trackBufferChanges(editor);
