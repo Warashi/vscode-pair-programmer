@@ -16,6 +16,10 @@
       {
         "command": "pair-programmer.start",
         "title": "Start pAIr programmer"
+      },
+      {
+        "command": "pair-programmer.stop",
+        "title": "Stop pAIr programmer"
       }
     ]
   },
