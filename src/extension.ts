@@ -242,14 +242,11 @@ export function activate(context: vscode.ExtensionContext) {
             if (!state.enabled) {
                 return;
             }
-            const uri = savedDocument.uri.toString();
-            const oldContent = state.bufferContent.get(uri) || '';
-            const newContent = savedDocument.getText();
-
-            const diff = computeDiff(oldContent, newContent);
-            if (diff) {
-                state.bufferContent.set(uri, newContent);
-                await sendDiffToChatModel(diff);
+            const editor = vscode.window.visibleTextEditors.find(
+                (e) => e.document === savedDocument
+            );
+            if (editor) {
+                trackBufferChanges(editor);
             }
         });
 
