@@ -223,10 +223,25 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(disposable);
+
+    const stopDisposable = vscode.commands.registerCommand('pair-programmer.stop', () => {
+        stopPairProgrammer();
+    });
+
+    context.subscriptions.push(stopDisposable);
 }
 
 export function deactivate() {
     if (state.chatPanel) {
         state.chatPanel.dispose();
     }
+    state.sendBuffer.forEach((timeoutId) => clearTimeout(timeoutId));
+    state.sendBuffer.clear();
+    state.bufferContent.clear();
+    state.chatHistory = [];
+}
+
+export function stopPairProgrammer() {
+    deactivate();
+    vscode.window.showInformationMessage('Pair programming session stopped.');
 }
