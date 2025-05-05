@@ -167,14 +167,10 @@ function trackBufferChanges(editor: vscode.TextEditor) {
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('pair-programmer.start', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showInformationMessage('No active editor found');
-            return;
-        }
-
-        const document = editor.document;
-        state.bufferContent.set(document.uri.toString(), document.getText());
+        // Initialize buffer content for all open text documents
+        vscode.workspace.textDocuments.forEach((document) => {
+            state.bufferContent.set(document.uri.toString(), document.getText());
+        });
 
         // Open chat panel at the start of the session
         if (!state.chatPanel) {
@@ -192,27 +188,30 @@ export function activate(context: vscode.ExtensionContext) {
             state.chatPanel.webview.html = getWebviewContent('');
         }
 
+        // Track changes for all text documents
         vscode.workspace.onDidChangeTextDocument((event) => {
-            if (event.document === document) {
+            const editor = vscode.window.visibleTextEditors.find(
+                (e) => e.document === event.document
+            );
+            if (editor) {
                 trackBufferChanges(editor);
             }
         });
 
+        // Handle save events for all text documents
         vscode.workspace.onDidSaveTextDocument((savedDocument) => {
-            if (savedDocument === document) {
-                const uri = document.uri.toString();
-                const oldContent = state.bufferContent.get(uri) || '';
-                const newContent = document.getText();
+            const uri = savedDocument.uri.toString();
+            const oldContent = state.bufferContent.get(uri) || '';
+            const newContent = savedDocument.getText();
 
-                const diff = computeDiff(oldContent, newContent);
-                if (diff) {
-                    sendDiffToChatModel(diff);
-                    state.bufferContent.set(uri, newContent);
-                }
+            const diff = computeDiff(oldContent, newContent);
+            if (diff) {
+                sendDiffToChatModel(diff);
+                state.bufferContent.set(uri, newContent);
             }
         });
 
-        vscode.window.showInformationMessage('Pair programming session started!');
+        vscode.window.showInformationMessage('Pair programming session started for all files!');
     });
 
     context.subscriptions.push(disposable);
