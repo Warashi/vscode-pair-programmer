@@ -25,9 +25,5 @@ This extension contributes the following settings:
 - The extension assumes the availability of a chat model. If no models are available, it will display an information message.
 - Diff computation is line-based and may not handle complex changes optimally.
 
-## Release Notes
-
-### 1.0.0
-
-- Initial release of the Pair Programmer extension.
-- Features include real-time diff tracking, chat integration, and a webview panel for chat history.
+# Acknowledgements
+This extension is heavily inspired by [atusy/aibou.nvim](https://github.com/atusy/aibou.nvim).
