@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 
 interface State {
-    lastSentTimes: Map<string, number>; // Added a separate Map to track last sent times
+    sendBuffer: Map<string, NodeJS.Timeout>; // Added a separate Map to track last sent times
     bufferContent: Map<string, string>;
     chatPanel: vscode.WebviewPanel | null;
 }
 
 const state: State = {
-    lastSentTimes: new Map(), // Added a separate Map to track last sent times
+    sendBuffer: new Map(), // Added a separate Map to track last sent times
     bufferContent: new Map(),
     chatPanel: null,
 };
@@ -144,28 +144,25 @@ function trackBufferChanges(editor: vscode.TextEditor) {
         return;
     }
 
-    // Implementing a delay mechanism to reduce frequency of sending diffs
-    const delay = 5000; // 5 seconds delay
-    const lastSentTime = state.lastSentTimes.get(uri) || 0;
-    const currentTime = Date.now();
+    const delay = 3000; // 3 seconds delay
 
     const sendDiff = () => {
         sendDiffToChatModel(diff);
         state.bufferContent.set(uri, newContent);
-        state.lastSentTimes.set(uri, Date.now());
     };
 
-    if (currentTime - lastSentTime > delay) {
-        sendDiff();
-    } else {
-        // Schedule the diff to be sent after the delay if no further changes occur
-        setTimeout(() => {
-            const latestContent = document.getText();
-            if (latestContent === newContent) {
-                sendDiff();
-            }
-        }, delay - (currentTime - lastSentTime));
+    if (state.sendBuffer.has(uri)) {
+        clearTimeout(state.sendBuffer.get(uri));
     }
+
+    const timeoutId = setTimeout(() => {
+        const latestContent = document.getText();
+        if (latestContent === newContent) {
+            sendDiff();
+        }
+    }, delay);
+
+    state.sendBuffer.set(uri, timeoutId);
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -211,7 +208,6 @@ export function activate(context: vscode.ExtensionContext) {
                 if (diff) {
                     sendDiffToChatModel(diff);
                     state.bufferContent.set(uri, newContent);
-                    state.lastSentTimes.set(uri, Date.now());
                 }
             }
         });
