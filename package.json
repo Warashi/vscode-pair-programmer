@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "pair-programmer.helloWorld",
-        "title": "Hello World"
+        "command": "pair-programmer.start",
+        "title": "Start pAIr programmer"
       }
     ]
   },
