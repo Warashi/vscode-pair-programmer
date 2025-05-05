@@ -89,7 +89,13 @@ function getWebviewContent(history: string): string {
             <title>Pair Programmer Chat</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 10px; }
-                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+                pre { 
+                    background: #f4f4f4; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    white-space: pre-wrap; /* Ensures text wraps */
+                    word-wrap: break-word; /* Breaks long words */
+                }
                 #history { margin-bottom: 20px; }
                 details { margin-bottom: 10px; }
                 summary { cursor: pointer; font-weight: bold; }
