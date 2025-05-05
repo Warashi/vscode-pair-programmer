@@ -1,15 +1,17 @@
 import * as vscode from 'vscode';
 
 interface State {
-    sendBuffer: Map<string, NodeJS.Timeout>; // Added a separate Map to track last sent times
+    sendBuffer: Map<string, NodeJS.Timeout>;
     bufferContent: Map<string, string>;
     chatPanel: vscode.WebviewPanel | null;
+    chatHistory: vscode.LanguageModelChatMessage[]; // Changed to use vscode.LanguageModelChatMessage[]
 }
 
 const state: State = {
-    sendBuffer: new Map(), // Added a separate Map to track last sent times
+    sendBuffer: new Map(),
     bufferContent: new Map(),
     chatPanel: null,
+    chatHistory: [], // Initialize as an empty array
 };
 
 const systemPrompt = `
@@ -29,14 +31,10 @@ async function sendDiffToChatModel(diff: string) {
     }
     const model = models[0];
 
-    // Collect chat history
-    const previousContent = state.chatPanel?.webview.html || getWebviewContent('');
-    const historyMatch = previousContent.match(/<div id="history">([\s\S]*?)<\/div>/);
-    const history = historyMatch ? historyMatch[1].replace(/<pre>|<\/pre>/g, '') : '';
-
     const res = await model.sendRequest([
         vscode.LanguageModelChatMessage.User(systemPrompt),
-        vscode.LanguageModelChatMessage.User(`Previous history:\n\n${history}\n\nNew diff:\n\n\`\`\`diff\n${diff}\n\`\`\``)
+        ...state.chatHistory,
+        vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``)
     ]);
 
     let responseText = '';
@@ -44,10 +42,10 @@ async function sendDiffToChatModel(diff: string) {
         responseText += message;
     }
 
-    updateChatPanel(responseText, diff);
+    updateChatPanel(diff, responseText);
 }
 
-function updateChatPanel(content: string, diff: string) {
+function updateChatPanel(diff: string, responseText: string) {
     if (!state.chatPanel) {
         state.chatPanel = vscode.window.createWebviewPanel(
             'pairProgrammerChat',
@@ -61,25 +59,25 @@ function updateChatPanel(content: string, diff: string) {
         });
     }
 
-    // Maintain a history of chat messages
-    const previousContent = state.chatPanel.webview.html || getWebviewContent('');
-    const historyMatch = previousContent.match(/<div id="history">([\s\S]*?)<\/div>/);
-    const history = historyMatch ? historyMatch[1] : '';
+    // Update the chat history
+    state.chatHistory.push(
+        vscode.LanguageModelChatMessage.User(`Diff:\n\n\`\`\`diff\n${diff}\n\`\`\``),
+        vscode.LanguageModelChatMessage.Assistant(responseText)
+    );
 
-    // Add collapsible diff section
-    const updatedHistory = `
-        ${history}
-        <details>
-            <summary>Sent Diff</summary>
-            <pre>${diff}</pre>
-        </details>
-        <pre>${content}</pre>
-    `;
-
-    state.chatPanel.webview.html = getWebviewContent(updatedHistory);
+    state.chatPanel.webview.html = getWebviewContent(state.chatHistory);
 }
 
-function getWebviewContent(history: string): string {
+function getWebviewContent(history: vscode.LanguageModelChatMessage[]): string {
+    const historyHtml = history.map(entry => {
+        if (entry.role === vscode.LanguageModelChatMessageRole.User) {
+            return `<details><summary>Sent Diff</summary><pre>${entry.content}</pre></details>`;
+        } else if (entry.role === vscode.LanguageModelChatMessageRole.Assistant) {
+            return `<pre>${entry.content}</pre>`;
+        }
+        return '';
+    }).join('');
+
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -103,7 +101,7 @@ function getWebviewContent(history: string): string {
         </head>
         <body>
             <h2>Chat Response</h2>
-            <div id="history">${history}</div>
+            <div id="history">${historyHtml}</div>
         </body>
         </html>
     `;
@@ -185,7 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
                 state.chatPanel = null;
             });
 
-            state.chatPanel.webview.html = getWebviewContent('');
+            state.chatPanel.webview.html = getWebviewContent([]);
         }
 
         // Track changes for all text documents
