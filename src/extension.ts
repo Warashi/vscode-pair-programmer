@@ -43,10 +43,17 @@ function updateChatPanel(content: string) {
         });
     }
 
-    state.chatPanel.webview.html = getWebviewContent(content);
+    // Maintain a history of chat messages
+    const previousContent = state.chatPanel.webview.html || getWebviewContent('');
+    const historyMatch = previousContent.match(/<div id="history">([\s\S]*?)<\/div>/);
+    const history = historyMatch ? historyMatch[1] : '';
+
+    const updatedHistory = `${history}<pre>${content}</pre>`;
+
+    state.chatPanel.webview.html = getWebviewContent(updatedHistory);
 }
 
-function getWebviewContent(content: string): string {
+function getWebviewContent(history: string): string {
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -57,11 +64,12 @@ function getWebviewContent(content: string): string {
             <style>
                 body { font-family: Arial, sans-serif; padding: 10px; }
                 pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+                #history { margin-bottom: 20px; }
             </style>
         </head>
         <body>
             <h2>Chat Response</h2>
-            <pre>${content}</pre>
+            <div id="history">${history}</div>
         </body>
         </html>
     `;
