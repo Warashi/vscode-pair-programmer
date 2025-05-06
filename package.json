@@ -34,11 +34,13 @@
     "commands": [
       {
         "command": "pair-programmer.start",
-        "title": "Start pAIr programmer"
+        "title": "Start",
+        "category": "pAIr programmer"
       },
       {
         "command": "pair-programmer.stop",
-        "title": "Stop pAIr programmer"
+        "title": "Stop",
+        "category": "pAIr programmer"
       }
     ]
   },
