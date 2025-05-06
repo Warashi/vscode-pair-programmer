@@ -5,7 +5,7 @@
   "description": "An AI-powered pair programming assistant.",
   "icon": "assets/icons/icon.png",
   "repository": "https://github.com/Warashi/vscode-pair-programmer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.99.0"
   },
