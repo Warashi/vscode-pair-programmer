@@ -3,7 +3,7 @@
   "displayName": "pAIr programmer",
   "publisher": "warashi",
   "description": "An AI-powered pair programming assistant.",
-  "icon": "assets/icon/icon.png",
+  "icon": "assets/icons/icon.png",
   "repository": "https://github.com/Warashi/vscode-pair-programmer",
   "version": "0.0.1",
   "engines": {
