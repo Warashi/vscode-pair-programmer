@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { diffLines } from 'diff';
+import { createPatch } from 'diff';
 
 interface State {
     enabled: boolean;
@@ -55,7 +55,7 @@ async function sendDiffToChatModel(diff: string) {
             messages.push(vscode.LanguageModelChatMessage.User(customInstructions));
         }
         messages.push(...state.chatHistory);
-        messages.push(vscode.LanguageModelChatMessage.User(`New diff:\n\n\`\`\`diff\n${diff}\n\`\`\``));
+        messages.push(vscode.LanguageModelChatMessage.User(diff));
 
         const res = await model.sendRequest(messages);
 
@@ -88,7 +88,7 @@ function updateChatPanel(diff: string, responseText: string) {
 
     // Update the chat history
     state.chatHistory.push(
-        vscode.LanguageModelChatMessage.User(`Diff:\n\n\`\`\`diff\n${diff}\n\`\`\``),
+        vscode.LanguageModelChatMessage.User(diff),
         vscode.LanguageModelChatMessage.Assistant(responseText)
     );
 
@@ -144,23 +144,12 @@ function getWebviewContent(history: vscode.LanguageModelChatMessage[]): string {
     `;
 }
 
-function computeDiff(oldContent: string, newContent: string): string | null {
+function computeDiff(filename: string, oldContent: string, newContent: string): string | null {
     if (oldContent === newContent) {
         return null;
     }
 
-    const diff = diffLines(oldContent, newContent);
-    const diffResult: string[] = [];
-
-    diff.forEach((part) => {
-        if (part.added) {
-            diffResult.push(...part.value.split('\n').map(line => `+ ${line}`));
-        } else if (part.removed) {
-            diffResult.push(...part.value.split('\n').map(line => `- ${line}`));
-        }
-    });
-
-    return diffResult.join('\n');
+    return createPatch(filename, oldContent, newContent);
 }
 
 function trackBufferChanges(editor: vscode.TextEditor) {
@@ -169,7 +158,7 @@ function trackBufferChanges(editor: vscode.TextEditor) {
     const oldContent = state.bufferContent.get(uri) || '';
     const newContent = document.getText();
 
-    const diff = computeDiff(oldContent, newContent);
+    const diff = computeDiff(uri, oldContent, newContent);
     if (!diff) {
         return;
     }
